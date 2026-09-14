@@ -1,0 +1,33 @@
+---
+title: "Assignment 1"
+author: "Han Sun, student ID: 83528404"
+date: today
+format: pdf
+geometry: top = 1cm
+---
+
+### Research Question
+
+Does the mileage of a car increase as its weight increases?
+
+### Answer
+
+No, the mileage of a car decreases as its weight increases. To address this question, I used following procedures:
+
+1.  Subset the *mtcars* dataset into a new one with only two columns (mpg and wt).
+2.  Convert the miles per gallon into kilometres per litre. (1mile=1.60934 kilometres, 1 US gallon=3.78541 litres), then km/L = m/g \*1.60934/3.78541
+3.  Generate a scatter plot using `geom_point` in ggplot2 and add a regression line using `geom_smooth`.
+
+```{r}
+#| echo: false
+df_mpg_wt <- mtcars[,c("mpg","wt")]   #select two columns
+colnames(df_mpg_wt) <- c("miles_per_gallon", "weight") #rename the column
+df_km_per_litre <- data.frame(km_per_litre = df_mpg_wt$miles_per_gallon*1.60934/3.78541, weight = df_mpg_wt$weight)  #convert m/g to km/L
+library(ggplot2)
+ggplot(df_km_per_litre,aes(x = weight , y = km_per_litre))+
+  geom_point()+            #generate scatter plot and add trend line
+  geom_smooth(method = "lm" , formula = y ~ x , se = FALSE, colour = "grey")+
+  labs(x = "Vehicle Weight (1000 lbs)", y = "Mileage (km/L)", title = "Relationship Between Vehicle Weight and Mileage") #label the axes and title
+```
+
+4.  The scatter plot suggests a negative linear relationship between vehicle weight and mileage.
