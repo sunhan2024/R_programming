@@ -1,0 +1,181 @@
+---
+title: "Assignment 2" 
+author: "Han Sun #83528404"
+format: pdf
+editor: visual
+---
+
+# Research Question
+
+# What types of proceedings are most common among teenagers aged 10-19 over the recent five years, and what areas could be improved?
+
+## Introduction
+
+In New Zealand, the justice system is considerably compatible with teenage crimes. Alleged offenders under age fourteen may not be criminally prosecuted (except for murder or manslaughter), and offenders from fourteen to seventeen years old must be referred to a family group conference either before formal charges or before sentencing (Allison Morris, 2004). In New Zealand, young people aged 14 to 16 years account for 5% of the population, but they make up 10% of violent apprehensions (Crawford & Kennedy, 2008). Youth offending is an important social issue in New Zealand. However, there is limited recent research related with this issue over years. This study therefore examines how teenage offending has changed over recent years.
+
+## Methods
+
+**Data Source**
+
+Data of police proceedings from 2021 to 2025 was downloaded from https://www.police.govt.nz/about-us/publications-statistics/data-and-statistics/policedatanz/proceedings-offender-demographics
+
+The data set was provided in CSV format, and contained with all variables of interests for this study.
+
+**Data Processing and Analysis**
+
+All procedures were conducted in R Quarto and coding chunks using R studio (version 2026.08.0).
+
+Based on the age ranges in the downloaded data set, the age groups of "10-14" and "15-19" were selected to represent the teenage population.
+
+For summing up all the proceedings by Year, Ethnics and Types of Offenses, the R package of dplyr was used.
+
+For generating graphs, the R package of ggplot2 was used.
+
+For assessing potencial associations between two categorical variables, we applied the R built-in Chi-square test.
+
+## Results
+
+```{r}
+#| echo: false
+#| message: false 
+setwd("C:/Users/sunha/Desktop/data401/assignment 2") 
+df <- read.csv("Ethnicity AES_data.csv") 
+df$Age.Group <- factor(df$Age.Group) 
+df_teen <- df[df$Age.Group=="10-14"|df$Age.Group=="15-19",]
+df_teen$Year.Month <- factor(df_teen$Year.Month) 
+library(dplyr) 
+df_year <- df_teen %>%
+  mutate(year = as.numeric(sub(".*月", "", Year.Month))) %>%
+  group_by(year, Age.Group) %>%
+  summarise(
+    Proceedings = sum(Proceedings, na.rm = TRUE),
+    .groups = "drop")
+df_year <- df_year[df_year$year!=2020,]
+library(ggplot2) 
+ggplot(data=df_year, aes(x=year, y=Proceedings, fill=Age.Group))+   
+  geom_col()+
+  labs(title = "Proceedings of Age 10-19 by Year", y="Proceedings", x="Year")
+```
+
+The bar chart of all proceedings against teenagers 10-19 across recent 5 years reveals that the numbers are steadily above 20,000 and slightly increased from 2021 to 2023, then declined from 2023 to 2025. The proceedings are mostly contributed by age 15-19.
+
+```{r}
+#| echo: false 
+#| message: false 
+library(dplyr)
+df_type <- df_teen %>%
+  mutate(year = as.numeric(sub(".*月", "", Year.Month))) %>%
+  group_by(year, Age.Group, ANZSOC.Division) %>%
+  summarise(
+    Proceedings = sum(Proceedings, na.rm = TRUE),
+    .groups = "drop")
+#generate proceedings by type of offense in year 2025
+df2025 <- df_type[df_type$year==2025,]
+df2025_new <- df2025 %>%
+  mutate(ANZSOC.Division = reorder(ANZSOC.Division, -Proceedings, FUN = sum))
+
+ggplot(data=df2025_new, aes(x=ANZSOC.Division , y= Proceedings, fill=Age.Group))+
+  geom_col()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 6))+
+  labs(x = "Types of Offenses", title = "Proceedings for Year 2025")
+```
+
+We generated stack bar chart for year 2025, for all the sub-types of offenses in age groups of 10-14 and 15-19. For the total proceedings, the "Theft" is the most one, but mostly contributed by age 10-14. For age group of 15-19, the most offense is "Traffic and vehicle offences". Same trend has been identified for years from 2021 to 2024.
+
+```{r}
+#| echo: false 
+#| message: false 
+library(dplyr)
+df_ethnic <- df_teen %>%
+  mutate(year = as.numeric(sub(".*月", "", Year.Month))) %>%
+  group_by(year, Age.Group, Ethnic.Group) %>%
+  summarise(
+    Proceedings = sum(Proceedings, na.rm = TRUE),
+    .groups = "drop")
+#generate proceedings by ethnic group in year 2025
+df2025_ethnic <- df_ethnic[df_ethnic$year==2025,]
+df2025_ethnic <- df2025_ethnic %>%
+  mutate(Ethnic.Group = reorder(Ethnic.Group, -Proceedings, FUN = sum))
+
+ggplot(data=df2025_ethnic, aes(x=Ethnic.Group , y= Proceedings, fill=Age.Group))+
+  geom_col()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 6))+
+  labs(x = "Ethnic Groups", title = "Proceedings for Year 2025")
+```
+
+As shown in the figure of total proceedings 2025 breaking down by ethnic groups, the Maori takes the most proceedings across either 10-14 or 15-19 agr group, followed by "Not Stated" and "European". Same trend is for year 2021-2024.
+
+```{r}
+#| echo: false 
+#| message: false
+Proceedings <- factor(df_teen$Proceedings)
+Ethnic_Group <- factor(df_teen$Ethnic.Group)
+chisq.test(Ethnic_Group, Proceedings)
+```
+
+We take proceedings as a factor and take the Chi-square test with ethnic group. As shown in the Chi-square test, the p value is less than 2.2e-16, which is much lower than the standard threshold of 0.05. This indicates a statistically significant association between the Ethnic Group and the Proceedings.
+
+```{r}
+#| echo: false 
+#| message: false
+library(ggplot2)
+library(dplyr)
+
+# 1. Prepare and summarize the data
+heatmap_df <- df_teen %>%
+  # Extract numeric year from Year.Month
+  mutate(year = as.numeric(sub(".*月", "", Year.Month))) %>%
+  # Filter out missing or non-informative records if needed
+  filter(Ethnic.Group!="Not Stated") %>%
+  # Group by Year, Ethnicity, and Offense Division
+  group_by(year, Ethnic.Group, ANZSOC.Division) %>%
+  summarise(Total_Proceedings = sum(Proceedings, na.rm = TRUE), .groups = "drop_last") %>%
+  # Calculate percentage within each Ethnic Group for each Year
+  mutate(Percentage = (Total_Proceedings / sum(Total_Proceedings)) * 100) %>%
+  ungroup()
+
+# 2. Reorder ANZSOC Divisions by overall total frequency (most frequent at top)
+heatmap_df <- heatmap_df %>%
+  mutate(ANZSOC.Division = reorder(ANZSOC.Division, Total_Proceedings, FUN = sum))
+heatmap_df <- heatmap_df[heatmap_df$year!=2020,]
+
+# 3. Create the faceted heatmap
+ggplot(heatmap_df, aes(x = factor(year), y = ANZSOC.Division, fill = Percentage)) +
+  geom_tile(color = "white", linewidth = 0.3) +
+  facet_wrap(~ Ethnic.Group) +
+  scale_fill_viridis_c(
+    option = "magma", 
+    name = "% within\nEthnic Group",
+    labels = function(x) paste0(round(x, 1), "%")
+  ) +
+  labs(title = "Proceedings vs Types of Offenses vs Ethnic Groups",
+    x= NULL,
+    y= NULL) +
+  theme_minimal(base_size = 11) +
+  theme(
+    axis.text.x = element_text(size = 5),
+    axis.text.y = element_text(angle = 45, size = 2),
+    panel.grid = element_blank(),
+    strip.text = element_text(face = "bold", size = 6),
+    legend.position = "right",
+    aspect.ratio = 0.8
+  )
+```
+
+As indicated in the heat map, different types of offenses take different parts in different ethnic groups. For example, "Theft" is the dominant type of offense in the Maori, and "Traffic and vehicle offenses" is primary in the Indians and other ethnic groups.
+
+## Discussion
+
+To take a overall look at all proceedings against teenage group (age 10-19), it is slightly increased from 2021 to 2023, and declined from 2023 to 2025. This suggests that more teenagers have not been involved in offenses from 2023, which is a benign sign for the society.
+
+As for the types of offenses, the majorities are "Theft" and "Traffic and vehicle offenses". It implies that most teenage offenses are related with money.
+
+The top ethnic of all proceedings is Maori, followed by European. By this result, it shows that we should pay more attentions on Maori teenagers' educations and the welfares of the Maori group as a possible method of improvement in the future. As further validated in the heat map, in Maori group the "Theft" takes the largest part, and this may indicate that an increase in the average wealth of Maori family may decrease the trend of the Maori teenagers' theft.
+
+To break down the proceedings by the age groups of 10-14 and 15-19, the trends are generally the same with that in the whole teenage group. However, as for the types of offenses in 10-14 group the majority type is "Theft", and in 15-19 group it is "Traffic and vehicle offenses". This difference in types of offenses implies that we should treat differently when educating or propagating among teenagers.
+
+## Reference
+
+Allison Morris, Youth Justice in New Zealand, Crime and Justice, Volume 31
+
+R. Crawford, P. Kennedy, Improving interventions to reduce violent offending by young people in New Zealand, Ministry of Justice, 2008
